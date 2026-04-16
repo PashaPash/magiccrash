@@ -3,16 +3,6 @@
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
-app.MapGet("/", () => Results.Ok(new
-{
-	name = "magiccrash",
-	endpoints = new[]
-	{
-		"GET /sample",
-		"POST /convert"
-	}
-}));
-
 app.MapGet("/sample", () =>
 {
 	const string imagePath = "sample.jpg";
@@ -27,39 +17,6 @@ app.MapGet("/sample", () =>
 		using var imageStream = File.OpenRead(imagePath);
 		var pngBytes = ConvertImageToPngBytes(imageStream);
 		return Results.File(pngBytes, "image/png", "sample.png");
-	}
-	catch (Exception ex)
-	{
-		return Results.Problem($"An error occurred: {ex.Message}");
-	}
-});
-
-app.MapPost("/convert", async (HttpRequest request) =>
-{
-	if (!request.HasFormContentType)
-	{
-		return Results.BadRequest(new { error = "Send the image as multipart/form-data." });
-	}
-
-	var form = await request.ReadFormAsync();
-	var file = form.Files["file"] ?? form.Files.FirstOrDefault();
-
-	if (file is null)
-	{
-		return Results.BadRequest(new { error = "No file was uploaded." });
-	}
-
-	if (file.Length == 0)
-	{
-		return Results.BadRequest(new { error = "Uploaded file is empty." });
-	}
-
-	try
-	{
-		await using var uploadStream = file.OpenReadStream();
-		var pngBytes = ConvertImageToPngBytes(uploadStream);
-		var outputFileName = $"{Path.GetFileNameWithoutExtension(file.FileName)}.png";
-		return Results.File(pngBytes, "image/png", outputFileName);
 	}
 	catch (Exception ex)
 	{
