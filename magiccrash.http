@@ -1,0 +1,19 @@
+@host = http://127.0.0.1:5055
+
+### Root status
+GET {{host}}/
+Accept: application/json
+
+### Convert sample.jpg from the app working directory
+GET {{host}}/sample
+
+### Upload a file and convert it to PNG
+POST {{host}}/convert
+Content-Type: multipart/form-data; boundary=magiccrash-boundary
+
+--magiccrash-boundary
+Content-Disposition: form-data; name="file"; filename="sample.jpg"
+Content-Type: image/jpeg
+
+< ./sample.jpg
+--magiccrash-boundary--

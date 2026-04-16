@@ -1,18 +1,81 @@
 ﻿using ImageMagick;
 
-const string imagePath = "sample.jpg";
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
 
-if (!File.Exists(imagePath))
+app.MapGet("/", () => Results.Ok(new
 {
-	Console.Error.WriteLine($"Could not find {imagePath} in the current working directory.");
-	return;
-}
+	name = "magiccrash",
+	endpoints = new[]
+	{
+		"GET /sample",
+		"POST /convert"
+	}
+}));
 
-using (var image = new MagickImage(imagePath))
+app.MapGet("/sample", () =>
 {
+	const string imagePath = "sample.jpg";
+
+	if (!File.Exists(imagePath))
+	{
+		return Results.NotFound(new { error = $"Could not find {imagePath} in the current working directory." });
+	}
+
+	try
+	{
+		using var imageStream = File.OpenRead(imagePath);
+		var pngBytes = ConvertImageToPngBytes(imageStream);
+		return Results.File(pngBytes, "image/png", "sample.png");
+	}
+	catch (Exception ex)
+	{
+		return Results.Problem($"An error occurred: {ex.Message}");
+	}
+});
+
+app.MapPost("/convert", async (HttpRequest request) =>
+{
+	if (!request.HasFormContentType)
+	{
+		return Results.BadRequest(new { error = "Send the image as multipart/form-data." });
+	}
+
+	var form = await request.ReadFormAsync();
+	var file = form.Files["file"] ?? form.Files.FirstOrDefault();
+
+	if (file is null)
+	{
+		return Results.BadRequest(new { error = "No file was uploaded." });
+	}
+
+	if (file.Length == 0)
+	{
+		return Results.BadRequest(new { error = "Uploaded file is empty." });
+	}
+
+	try
+	{
+		await using var uploadStream = file.OpenReadStream();
+		var pngBytes = ConvertImageToPngBytes(uploadStream);
+		var outputFileName = $"{Path.GetFileNameWithoutExtension(file.FileName)}.png";
+		return Results.File(pngBytes, "image/png", outputFileName);
+	}
+	catch (Exception ex)
+	{
+		return Results.Problem($"An error occurred: {ex.Message}");
+	}
+});
+
+app.Run();
+
+static byte[] ConvertImageToPngBytes(Stream inputStream)
+{
+	using var image = new MagickImage(inputStream);
 	image.Quality = 100;
 	image.Format = MagickFormat.Png;
 
-	MemoryStream stream = new MemoryStream();
-	image.Write(stream);
+	using var outputStream = new MemoryStream();
+	image.Write(outputStream);
+	return outputStream.ToArray();
 }
